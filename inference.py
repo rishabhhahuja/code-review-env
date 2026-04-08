@@ -1,44 +1,39 @@
+import os
+import asyncio
 from openenv.core import EnvClient
-from models import Action, Observation
+from models import Action
 
-class MyClient(EnvClient[Action, Observation]):
-    def _step_payload(self, action):
-        return {"decision": action.decision}
+# ENV variables
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4o-mini")
 
-    def _parse_result(self, payload):
-        return payload
+class MyClient(EnvClient):   
+    pass
 
 
-def run():
-    env = MyClient.from_env("rishabhahuja/code-review-env")
+async def main():
+    try:
+        async with MyClient(base_url=API_BASE_URL) as env:
 
-    print("[START]")
+            print("START")
 
-    result = env.reset()
-    total_reward = 0
-    step = 0
+            # RESET
+            reset = await env.reset()
+            print("Reset done")
 
-    while not result["done"]:
-        code = result["observation"]["code"]
+            # STEP
+            result = await env.step(
+                Action(decision="FLAG_BUG")
+            )
 
-        # simple logic
-        if "=" in code and "==" not in code:
-            decision = "FLAG_BUG"
-        elif "password" in code:
-            decision = "REJECT"
-        elif "range(len" in code:
-            decision = "SUGGEST_FIX"
-        else:
-            decision = "APPROVE"
+            print("STEP")
+            print("Reward:", result.reward)
 
-        print(f"[STEP] step={step} decision={decision}")
+            print("END")
 
-        result = env.step(Action(decision=decision))
-        total_reward += result["reward"]
-        step += 1
-
-    print(f"[END] total_reward={total_reward}")
+    except Exception as e:
+        print("ERROR:", str(e))
 
 
 if __name__ == "__main__":
-    run()
+    asyncio.run(main())
